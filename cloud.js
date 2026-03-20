@@ -45,8 +45,12 @@ export const cloud = {
             return { success: true, message: "Account created successfully." };
         } catch (error) {
             let errorMsg = error.message;
-            if (error.code === 'auth/weak-password') errorMsg = "Password should be at least 6 characters.";
-            return { error: true, message: "Registration Error: " + errorMsg };
+            if (error.code === 'auth/weak-password') {
+                errorMsg = "Password should be at least 6 characters.";
+            } else if (error.code === 'auth/email-already-in-use') {
+                errorMsg = "Account already exists! Please click 'Log In' below.";
+            }
+            return { error: true, message: errorMsg };
         }
     },
 
