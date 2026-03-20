@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fireside</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+  
+  <script type="module" src="cloud.js"></script>
+</head>
+<body>
+  <input type="file" id="story-upload-input" accept="image/*,video/*" style="display:none;" onchange="handleStoryUpload(event)">
+  
+  <div class="header" style="display:none;">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div class="user-select-btn" onclick="toggleUserDropdown()">
+        <span id="active-user-display">User</span> ▾
+      </div>
+      <div class="user-dropdown" id="user-dropdown"></div>
+      <h1 class="header-logo">Fireside 🔥</h1>
+    </div>
+    <div class="top-nav-icons">
+      <div class="top-icon" onclick="navTo('search', this)">🔍</div>
+      <div class="top-icon" onclick="navTo('notifications', this); clearBell();" style="position:relative;">
+        🔔 <div id="bell-dot" style="display:none; position:absolute; top:-2px; right:-2px; width:10px; height:10px; background:#ef4444; border-radius:50%; box-shadow:0 0 5px rgba(239,68,68,0.5);"></div>
+      </div>
+      <div class="top-icon" onclick="navTo('upload', this)">➕</div>
+      <div class="top-icon" onclick="navTo('settings', this)">⚙️</div>
+    </div>
+  </div>
+
+  <div class="content" id="feed-container">
+     </div>
+
+  <div id="toast-container" class="toast-container"></div>
+  <div id="loader"><div class="spinner"></div><div id="loader-msg" style="font-weight:800; font-size:16px;">Syncing...</div></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
