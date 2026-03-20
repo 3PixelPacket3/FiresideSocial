@@ -12,12 +12,11 @@
   <link rel="stylesheet" href="styles.css">
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-  
-  <script type="module" src="cloud.js"></script>
 </head>
 <body>
+
   <input type="file" id="story-upload-input" accept="image/*,video/*" style="display:none;" onchange="handleStoryUpload(event)">
-  
+
   <div class="header" style="display:none;">
     <div style="display:flex; align-items:center; gap:12px;">
       <div class="user-select-btn" onclick="toggleUserDropdown()">
@@ -37,11 +36,282 @@
   </div>
 
   <div class="content" id="feed-container">
-     </div>
+    
+    <div id="ptr-indicator">↓ Pull to refresh</div>
+
+    <div id="view-login" class="view">
+      <div class="login-container">
+        <h1 class="login-title">Fireside 🔥</h1>
+        <p class="login-subtitle" id="auth-subtitle">Connect with the family.</p>
+        
+        <div id="login-form" style="width: 100%;">
+          <div class="form-group"><input type="text" id="login-username" class="form-input" placeholder="Username"></div>
+          <div class="form-group"><input type="password" id="login-password" class="form-input" placeholder="Password"></div>
+          <button class="btn" style="margin-top: 10px;" onclick="attemptLogin()">Ignite Session</button>
+          <p style="margin-top: 20px; font-size: 14px; color: var(--text-sub);">Don't have an account? <span style="color: var(--accent); cursor: pointer; font-weight: 700;" onclick="toggleAuthMode('signup')">Sign Up</span></p>
+        </div>
+        <div id="signup-form" style="width: 100%; display: none;">
+          <div class="form-group"><input type="text" id="reg-username" class="form-input" placeholder="Choose a Username"></div>
+          <div class="form-group"><input type="password" id="reg-password" class="form-input" placeholder="Create Password"></div>
+          <div class="form-group"><input type="password" id="reg-confirm" class="form-input" placeholder="Confirm Password"></div>
+          <button class="btn" style="margin-top: 10px;" onclick="attemptRegister()">Create Account</button>
+          <p style="margin-top: 20px; font-size: 14px; color: var(--text-sub);">Already have an account? <span style="color: var(--accent); cursor: pointer; font-weight: 700;" onclick="toggleAuthMode('login')">Log In</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-feed" class="view active">
+      <div class="stories-container" id="stories-wrapper"></div>
+      
+      <div class="feed-toggle-wrapper">
+        <div class="feed-toggle">
+          <div id="btn-feed-global" class="toggle-btn active" onclick="setFeedScope('global')">🌍 Global</div>
+          <div id="btn-feed-friends" class="toggle-btn" onclick="setFeedScope('friends')">🤝 Friends</div>
+        </div>
+      </div>
+      
+      <div class="filter-bar" id="filter-bar-container"></div>
+      <div id="posts-wrapper"></div>
+    </div>
+    
+    <div id="view-search" class="view">
+      <div class="page-container">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+          <span style="font-size:24px; cursor:pointer; color:var(--text-sub);" onclick="navTo('feed')">←</span>
+          <h2 style="margin:0; font-size:20px; font-weight:900;">Find Friends</h2>
+        </div>
+        <div class="search-input-wrapper">
+          <span style="font-size:18px; margin-right:10px; color:var(--text-sub);">🔍</span>
+          <input type="text" id="user-search-input" placeholder="Search usernames..." onkeyup="performUserSearch()">
+        </div>
+        <div id="search-results-list" style="margin-top: 20px;"></div>
+      </div>
+    </div>
+
+    <div id="view-profile" class="view">
+      <div style="padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; font-weight:700; color:var(--text-sub);" onclick="navTo('feed')">← Back</div>
+      <div id="profile-content"></div>
+    </div>
+
+    <div id="view-notifications" class="view">
+      <div class="page-container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+          <h2 style="margin:0; font-size:20px; font-weight:900;">Activity</h2>
+          <button class="btn-small" style="background:transparent; border:none; color:var(--text-sub);" onclick="clearMyNotifications()">Clear All</button>
+        </div>
+        <div id="notif-wrapper"></div>
+      </div>
+    </div>
+
+    <div id="view-upload" class="view">
+      <div class="page-container">
+        <h2 style="margin:0 0 20px 0; font-size:20px; font-weight:900;">New Post</h2>
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px; background: var(--accent-glow); padding: 12px; border-radius: 12px; border: 1px solid var(--accent);">
+          <input type="checkbox" id="is-spark" style="width:20px; height:20px; accent-color:var(--accent);" onchange="toggleSparkMode(this)">
+          <label for="is-spark" style="font-weight:700; color:var(--accent);">Ignite as Spark 🔥 (Max 300 chars)</label>
+        </div>
+        
+        <div style="display:flex; gap:12px; margin-bottom:16px;">
+          <select id="post-flair" class="form-input" style="flex:1;">
+            <option value="General">No Flair</option>
+            <option value="Announce">📣 Announce</option>
+            <option value="Thought">💭 Thought</option>
+            <option value="Question">❓ Question</option>
+            <option value="Chill">☕ Chill</option>
+          </select>
+          <select id="post-style" class="form-input" style="flex:1;">
+            <option value="default-style">Default Style</option>
+            <option value="style-dark-mode">Dark Mode</option>
+            <option value="style-warm-glow">Warm Glow</option>
+            <option value="style-terminal">Terminal</option>
+            <option value="style-neon-cyber">Neon Cyber</option>
+            <option value="style-vintage-paper">Vintage Paper</option>
+            <option value="style-hacker">Hacker (Matrix)</option>
+          </select>
+        </div>
+
+        <label class="file-picker" id="upload-file-picker">
+          <span id="picker-text">📸 Tap to select Media (Multiple OK)</span>
+          <input type="file" id="media-input" accept="image/*,video/*" multiple style="display:none;" onchange="handleMultiFileSelect(event)">
+          <div id="upload-preview-bar" class="upload-preview-container" style="display:none;"></div>
+        </label>
+        
+        <div class="form-group">
+          <textarea id="post-caption" class="form-input" placeholder="Write a caption... (use @username to mention)" rows="4" oninput="handleMentionInput('post-caption', 'post-mention-dropdown')"></textarea>
+          <div id="post-mention-dropdown" class="mention-dropdown" style="top:100%;"></div>
+        </div>
+        
+        <div class="form-group" id="upload-category-group"><select id="post-category" class="form-input"></select></div>
+        <div style="display:flex; gap:12px; margin-bottom:16px;" id="upload-extra-group">
+          <input type="text" id="post-location" class="form-input" placeholder="📍 Location">
+          <input type="text" id="post-link" class="form-input" placeholder="🔗 Link">
+        </div>
+        
+        <button class="btn btn-secondary" style="margin-bottom: 16px;" onclick="renderPostPreview()">👀 Preview Post</button>
+
+        <button class="btn" style="margin-top:0px;" onclick="submitPost()">Share to Fireside 🚀</button>
+
+        <div id="live-post-preview"></div>
+      </div>
+    </div>
+
+    <div id="view-settings" class="view">
+      <div class="page-container">
+        <h2 style="margin:0 0 20px 0; font-size:20px; font-weight:900;">Settings</h2>
+        
+        <div id="admin-settings-section" style="display:none;">
+          <h3 style="font-size:15px; color:#ef4444; margin-bottom:12px;">Admin Dashboard 👑</h3>
+          <button class="btn" style="background:linear-gradient(135deg, #ef4444, #991b1b); margin-bottom:24px;" onclick="openAdminDashboard()">Manage Network Users & Badges</button>
+        </div>
+
+        <h3 style="font-size:15px; color:var(--primary); margin-bottom:12px;">App Theme 🌗</h3>
+        <div class="theme-toggle-container">
+          <span style="font-weight:700; color:var(--text-main);">Light Mode</span>
+          <input type="checkbox" id="theme-toggle" style="width:24px; height:24px; accent-color:var(--accent);" onchange="toggleTheme(this)">
+        </div>
+
+        <h3 style="font-size:15px; color:var(--primary); margin-bottom:12px;">Verification & Badges 🏆</h3>
+        <div class="settings-list" style="padding: 16px; margin-bottom: 24px; border: 1px solid var(--border); border-radius: 14px;">
+           <p style="font-size:12px; color:var(--text-sub); margin-bottom: 8px; font-weight:700;">Apply for a network badge</p>
+           <select id="badge-apply-select" class="form-input" style="margin-bottom:12px;">
+              <option value="Verified">✓ Verified</option>
+              <option value="Top Poster">🔥 Top Poster</option>
+              <option value="Top Commenter">💬 Top Commenter</option>
+           </select>
+           <button class="btn btn-secondary" style="padding: 12px; font-size: 14px;" onclick="submitBadgeApp()">Submit Application</button>
+        </div>
+
+        <h3 style="font-size:15px; color:var(--primary); margin-bottom:12px;">Profile & Security 🛡️</h3>
+        <div class="settings-list" style="padding: 16px; margin-bottom: 24px; border: 1px solid var(--border); border-radius: 14px;">
+          <p style="font-size:12px; color:var(--text-sub); margin-bottom: 8px; font-weight:700;">Change Username</p>
+          <input type="text" id="sec-new-user" class="form-input" style="margin-bottom: 12px;" placeholder="New Username">
+          <button class="btn btn-secondary" style="padding: 12px; font-size: 14px; margin-bottom:24px;" onclick="updateUsername()">Change Username</button>
+
+          <p style="font-size:12px; color:var(--text-sub); margin-bottom: 8px; font-weight:700;">Change Password</p>
+          <input type="password" id="sec-current-pass" class="form-input" style="margin-bottom: 12px;" placeholder="Current Password">
+          <input type="password" id="sec-new-pass" class="form-input" style="margin-bottom: 12px;" placeholder="New Password">
+          <button class="btn btn-secondary" style="padding: 12px; font-size: 14px;" onclick="updatePassword()">Update Password</button>
+        </div>
+
+        <h3 style="font-size:15px; color:var(--primary); margin-bottom:12px;">Campfire Rooms (Themes)</h3>
+        <div style="display:flex; gap:12px; margin-bottom: 16px;">
+          <input type="text" id="new-cat-name" class="form-input" placeholder="Add room...">
+          <button class="btn" style="width:auto; padding:0 20px;" onclick="addCategory()">Add</button>
+        </div>
+        <div class="settings-list" id="cats-list-container" style="margin-bottom:30px;"></div>
+        
+        <h3 style="font-size:15px; color:var(--primary); margin-bottom:12px;">Help</h3>
+        <button class="btn btn-secondary" style="margin-bottom: 16px;" onclick="alert('User Guide Coming Soon!')">📖 Read User Guide</button>
+        
+        <button class="btn btn-secondary" onclick="syncData()">↻ Force Sync Network</button>
+      </div>
+    </div>
+
+    <div id="view-admin" class="view">
+      <div class="page-container">
+         <div style="padding: 12px 0; border-bottom: 1px solid var(--border); cursor: pointer; font-weight:700; color:var(--text-sub); margin-bottom:16px;" onclick="navTo('settings')">← Back to Settings</div>
+         <h2 style="margin:0 0 20px 0; font-size:20px; font-weight:900; color:#ef4444;">Admin Control Panel</h2>
+         
+         <div style="background:var(--surface); border:1px solid var(--accent); padding:16px; border-radius:12px; margin-bottom:24px;">
+            <h3 style="color:var(--accent); font-size:16px; margin:0 0 12px 0;">Badge Requests</h3>
+            <div id="admin-badge-requests-list" style="margin-bottom:16px;"></div>
+            
+            <hr style="border-color:var(--border); margin:16px 0;">
+            <h3 style="color:var(--accent); font-size:14px; margin:0 0 12px 0;">Manage User Badges</h3>
+            <input type="text" id="admin-assign-user" class="form-input" style="margin-bottom:8px; padding:10px;" placeholder="Username">
+            <input type="text" id="admin-assign-badge" class="form-input" style="margin-bottom:8px; padding:10px;" placeholder="Badge Name (e.g. Verified)">
+            <div style="display:flex; gap:10px;">
+                <button class="btn" style="flex:1; padding:10px;" onclick="adminForceAssignBadge()">Grant Badge</button>
+                <button class="btn" style="flex:1; padding:10px; background:#ef4444;" onclick="adminForceRemoveBadge()">Revoke</button>
+            </div>
+         </div>
+
+         <p style="color:var(--text-sub); font-size:13px; margin-bottom:12px;">Manage network access and security roles.</p>
+         <div id="admin-users-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-nav" style="display:none;">
+    <div class="nav-item active" onclick="navTo('feed', this)">🏠</div>
+    <div class="nav-item" onclick="navTo('upload', this)">➕</div>
+    <div class="nav-item" onclick="navTo('profile', this); openProfile(currentUser);">👤</div>
+  </div>
+
+  <div class="story-viewer" id="story-viewer">
+    <div class="story-progress-container"><div class="story-progress-bar"><div class="story-progress-fill" id="story-progress"></div></div></div>
+    <div class="story-header-overlay">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <div id="story-avatar" style="width:32px; height:32px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:14px; overflow:hidden;"></div>
+        <span id="story-author-name" style="font-weight:700; font-size:14px;">User</span>
+      </div>
+      <div style="display:flex; gap:16px;">
+        <span id="story-delete-btn" style="font-size:20px; cursor:pointer; display:none;" onclick="triggerDeleteStory()">🗑️</span>
+        <span style="font-size:24px; font-weight:bold; cursor:pointer;" onclick="closeStory()">✕</span>
+      </div>
+    </div>
+    <div class="story-content" id="story-media-container"></div>
+    <div class="story-nav-left" onclick="prevStory()"></div><div class="story-nav-right" onclick="nextStory()"></div>
+  </div>
+
+  <div class="comments-modal" id="comments-modal">
+    <div class="modal-header"><h3 style="margin:0;">Comments</h3><div style="font-size:24px; cursor:pointer; color:var(--text-sub);" onclick="closeComments()">✕</div></div>
+    <div class="comments-list" id="comments-list"></div>
+    <div class="comment-input-area">
+      <input type="hidden" id="active-post-id">
+      <div id="comment-mention-dropdown" class="mention-dropdown" style="bottom:70px; top:auto;"></div>
+      <input type="text" id="comment-text" placeholder="Add a comment... (use @username)" oninput="handleMentionInput('comment-text', 'comment-mention-dropdown')">
+      <button class="comment-btn" onclick="submitComment()">Post</button>
+    </div>
+  </div>
+
+  <div class="comments-modal" id="edit-profile-modal">
+    <div class="modal-header"><h3 style="margin:0;">Edit Profile</h3><div style="font-size:24px; cursor:pointer; color:var(--text-sub);" onclick="closeEditProfile()">✕</div></div>
+    <div style="padding: 24px 20px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;">
+      
+      <div id="crop-modal-container"><img id="crop-image"></div>
+      
+      <label class="file-picker" id="prof-upload-label" style="height: 120px; width: 120px; border-radius: 50%; margin: 0 auto 24px auto;">
+        <span id="prof-picker-text">📸 Pic</span>
+        <img id="prof-preview-img" class="file-preview" style="border-radius: 50%; width: 100%; height: 100%; object-fit: cover; display: none;">
+        <input type="file" accept="image/*" style="display:none;" onchange="handleProfFileSelect(event)">
+      </label>
+
+      <button id="apply-crop-btn" class="btn btn-secondary" style="display:none; margin-bottom:24px;" onclick="finalizeCrop()">✂️ Apply Crop</button>
+
+      <div class="form-group"><label style="font-size:12px; color:var(--text-sub); font-weight:700;">Bio</label><textarea id="edit-bio" class="form-input" rows="3"></textarea></div>
+      <div class="form-group"><label style="font-size:12px; color:var(--text-sub); font-weight:700;">Location</label><input type="text" id="edit-location" class="form-input"></div>
+      <div class="form-group"><label style="font-size:12px; color:var(--text-sub); font-weight:700;">Website Link</label><input type="text" id="edit-website" class="form-input"></div>
+      <div class="form-group"><label style="font-size:12px; color:var(--text-sub); font-weight:700;">Pronouns</label><input type="text" id="edit-pronouns" class="form-input" placeholder="e.g. he/him"></div>
+      
+      <div class="form-group" style="display:flex; align-items:center; gap:10px; margin-top:20px;">
+        <input type="checkbox" id="edit-hide-search" style="width:20px; height:20px; accent-color:var(--accent);">
+        <label style="font-size:14px; color:var(--text-main); font-weight:700;">Hide Profile from Search</label>
+      </div>
+
+      <button class="btn" style="margin-top: 20px; margin-bottom:40px;" onclick="saveProfile()">Save Profile Updates</button>
+    </div>
+  </div>
+
+  <div class="comments-modal" id="edit-post-modal">
+    <div class="modal-header"><h3 style="margin:0;">Edit Post</h3><div style="font-size:24px; cursor:pointer; color:var(--text-sub);" onclick="closeEditPost()">✕</div></div>
+    <div style="padding: 24px 20px;">
+      <input type="hidden" id="edit-post-id">
+      <input type="hidden" id="edit-post-rownum">
+      <div class="form-group"><textarea id="edit-post-caption" class="form-input" placeholder="Update caption..." rows="4"></textarea></div>
+      <div class="form-group"><select id="edit-post-category" class="form-input"></select></div>
+      <div style="display:flex; gap:12px; margin-bottom:20px;">
+        <input type="text" id="edit-post-location" class="form-input" placeholder="📍 Location">
+        <input type="text" id="edit-post-link" class="form-input" placeholder="🔗 Link">
+      </div>
+      <button class="btn" onclick="saveEditedPost()">Save Changes</button>
+    </div>
+  </div>
 
   <div id="toast-container" class="toast-container"></div>
   <div id="loader"><div class="spinner"></div><div id="loader-msg" style="font-weight:800; font-size:16px;">Syncing...</div></div>
 
   <script type="module" src="app.js"></script>
+
 </body>
 </html>
