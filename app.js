@@ -13,7 +13,7 @@ let storyTimer;
 const roomPalette = ['#f97316', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#10b981', '#06b6d4', '#eab308'];
 let cropperInstance = null;
 
-const api = window.cloud;
+import { cloud as api } from './cloud.js';
 
 window.onload = function() { 
   const savedUser = localStorage.getItem('fireside_user');
