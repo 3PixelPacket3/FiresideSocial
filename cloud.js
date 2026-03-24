@@ -20,27 +20,29 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
 
-const formatUsernameAsEmail = (username) => `${username.trim().toLowerCase().replace(/[^a-z0-9]/g, '')}@fireside.local`;
-
 export const cloud = {
     // --- AUTHENTICATION & USERS ---
-    registerUser: async (username, password) => {
+    registerUser: async (email, username, password) => {
         try {
             const cleanUser = String(username).trim();
             const searchUser = cleanUser.toLowerCase();
-            const email = formatUsernameAsEmail(cleanUser);
 
+            // 1. Check if the username is already taken in the database
             const q = query(collection(db, "Users"), where("usernameLower", "==", searchUser));
             const snap = await getDocs(q);
             if (!snap.empty) return { error: true, message: "Username already taken. Please choose another." };
 
+            // 2. Register the user with Firebase Authentication using their real email
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            
+            // 3. Construct the network profile
             const newProfile = {
-                userId: userCredential.user.uid, username: cleanUser, usernameLower: searchUser,
+                userId: userCredential.user.uid, email: email, username: cleanUser, usernameLower: searchUser,
                 bio: "New to Fireside", profilePic: "", theme: "dark", role: "user",
                 notifClearTime: 0, location: "", website: "", pronouns: "", badges: [], hideFromSearch: false, createdAt: Date.now()
             };
 
+            // 4. Save to Firestore
             await setDoc(doc(db, "Users", cleanUser), newProfile);
             return { success: true, message: "Account created successfully." };
         } catch (error) {
@@ -48,66 +50,55 @@ export const cloud = {
             if (error.code === 'auth/weak-password') {
                 errorMsg = "Password should be at least 6 characters.";
             } else if (error.code === 'auth/email-already-in-use') {
-                errorMsg = "Account already exists! Please click 'Log In' below.";
+                errorMsg = "An account with this email already exists! Please log in.";
+            } else if (error.code === 'auth/invalid-email') {
+                errorMsg = "Please enter a valid email address.";
             } else if (error.code === 'auth/operation-not-allowed') {
-                errorMsg = "CRITICAL: 'Email/Password' provider is disabled in Firebase Console.";
+                errorMsg = "CONSOLE REQUIRED: Turn ON 'Email/Password' in Firebase Console under Authentication -> Sign-in method.";
             }
             return { error: true, message: errorMsg };
         }
     },
 
-    authenticateUser: async (username, password) => {
+    authenticateUser: async (email, password) => {
         try {
-            const cleanUser = String(username).trim();
-            const searchUser = cleanUser.toLowerCase();
-            const email = formatUsernameAsEmail(cleanUser);
-            
+            // 1. Authenticate with Firebase
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const uid = userCredential.user.uid;
             
-            let p = null;
-
-            // 1. Try fetching by exact doc ID
-            const exactDoc = await getDoc(doc(db, "Users", cleanUser));
-            if (exactDoc.exists()) {
-                p = exactDoc.data();
-            } else {
-                // 2. Try fetching by userId mapping
-                const qUid = query(collection(db, "Users"), where("userId", "==", uid));
-                const snapUid = await getDocs(qUid);
-                if (!snapUid.empty) {
-                    p = snapUid.docs[0].data();
-                } else {
-                    // 3. Fallback to usernameLower
-                    const qLower = query(collection(db, "Users"), where("usernameLower", "==", searchUser));
-                    const snapLower = await getDocs(qLower);
-                    if (!snapLower.empty) {
-                        p = snapLower.docs[0].data();
-                    }
-                }
-            }
-
-            if (!p) return { error: true, message: "CRITICAL: Auth succeeded, but profile data is missing." };
+            // 2. Fetch the corresponding profile using the secured userId
+            const qUid = query(collection(db, "Users"), where("userId", "==", uid));
+            const snapUid = await getDocs(qUid);
             
+            if (snapUid.empty) return { error: true, message: "CRITICAL: Auth succeeded, but profile data is missing." };
+            
+            const p = snapUid.docs[0].data();
+
             return { 
                 success: true, 
                 user: {
-                    userId: p.userId, username: p.username, bio: p.bio, profilePic: p.profilePic,
+                    userId: p.userId, email: p.email, username: p.username, bio: p.bio, profilePic: p.profilePic,
                     theme: p.theme, role: p.role, notifClearTime: p.notifClearTime || 0,
                     location: p.location || "", website: p.website || "", pronouns: p.pronouns || ""
                 } 
             };
         } catch (error) {
-            if (error.code === 'auth/operation-not-allowed') {
-                return { error: true, message: "CRITICAL: 'Email/Password' provider is disabled in Firebase Console." };
+            if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+                return { error: true, message: "Invalid email or password." };
             }
-            return { error: true, message: "Invalid username or password." };
+            return { error: true, message: "Authentication failed. " + error.message };
         }
     },
 
     changePassword: async (currentUser, currentP, newP) => {
         try {
-            const email = formatUsernameAsEmail(currentUser);
+            // Retrieve stored email based on username to securely re-authenticate
+            const userDoc = await getDoc(doc(db, "Users", currentUser));
+            if (!userDoc.exists()) return { error: true, message: "User profile not found." };
+            
+            const email = userDoc.data().email;
+            if (!email) return { error: true, message: "Email required for this action." };
+
             await signInWithEmailAndPassword(auth, email, currentP);
             await firebaseUpdatePassword(auth.currentUser, newP);
             return { success: true, message: "Password updated successfully." };
