@@ -234,13 +234,14 @@ window.toggleAdminUI = function() {
 }
 
 window.attemptLogin = async function() { 
-  const u = document.getElementById('login-username').value; 
-  const p = document.getElementById('login-password').value;
-  if (!u || !p) { showToast("Credentials required."); return; } 
+  const email = document.getElementById('login-email').value.trim(); 
+  const password = document.getElementById('login-password').value;
+  
+  if (!email || !password) { showToast("Credentials required."); return; } 
   
   loading(true, "Authenticating...");
   try {
-    const res = await api.authenticateUser(u, p);
+    const res = await api.authenticateUser(email, password);
     loading(false);
     if (res.error) { showToast(res.message); } 
     else { 
@@ -262,23 +263,24 @@ window.attemptLogin = async function() {
 };
 
 window.attemptRegister = async function() { 
-  const u = document.getElementById('reg-username').value.trim(); 
-  const p = document.getElementById('reg-password').value; 
-  const c = document.getElementById('reg-confirm').value;
+  const email = document.getElementById('reg-email').value.trim(); 
+  const username = document.getElementById('reg-username').value.trim(); 
+  const password = document.getElementById('reg-password').value; 
+  const confirm = document.getElementById('reg-confirm').value;
   
-  if (!u || !p || !c) { showToast("All fields are required."); return; } 
-  if (p !== c) { showToast("Passwords do not match."); return; } 
-  if (p.length < 6) { showToast("Password must be at least 6 characters."); return; } 
+  if (!email || !username || !password || !confirm) { showToast("All fields are required."); return; } 
+  if (password !== confirm) { showToast("Passwords do not match."); return; } 
+  if (password.length < 6) { showToast("Password must be at least 6 characters."); return; } 
   
   loading(true, "Forging account...");
   try {
-    const res = await api.registerUser(u, p);
+    const res = await api.registerUser(email, username, password);
     loading(false);
     if (res.error) showToast(res.message); 
     else { 
       showToast("Account created! Please log in."); 
       toggleAuthMode('login'); 
-      document.getElementById('login-username').value = u; 
+      document.getElementById('login-email').value = email; 
       document.getElementById('login-password').value = ''; 
     }
   } catch(err) {
