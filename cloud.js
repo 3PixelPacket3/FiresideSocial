@@ -56,12 +56,18 @@ export const cloud = {
 
     authenticateUser: async (username, password) => {
         try {
-            const email = formatUsernameAsEmail(username);
+            const cleanUser = String(username).trim();
+            const searchUser = cleanUser.toLowerCase();
+            const email = formatUsernameAsEmail(cleanUser);
+            
             await signInWithEmailAndPassword(auth, email, password);
-            const userDocSnap = await getDoc(doc(db, "Users", String(username).trim()));
+            
+            const q = query(collection(db, "Users"), where("usernameLower", "==", searchUser));
+            const snap = await getDocs(q);
 
-            if (!userDocSnap.exists()) return { error: true, message: "CRITICAL: Auth succeeded, but profile data is missing." };
-            const p = userDocSnap.data();
+            if (snap.empty) return { error: true, message: "CRITICAL: Auth succeeded, but profile data is missing." };
+            
+            const p = snap.docs[0].data();
 
             return { 
                 success: true, 
