@@ -27,22 +27,18 @@ export const cloud = {
             const cleanUser = String(username).trim();
             const searchUser = cleanUser.toLowerCase();
 
-            // 1. Check if the username is already taken in the database
             const q = query(collection(db, "Users"), where("usernameLower", "==", searchUser));
             const snap = await getDocs(q);
             if (!snap.empty) return { error: true, message: "Username already taken. Please choose another." };
 
-            // 2. Register the user with Firebase Authentication using their real email
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             
-            // 3. Construct the network profile
             const newProfile = {
                 userId: userCredential.user.uid, email: email, username: cleanUser, usernameLower: searchUser,
                 bio: "New to Fireside", profilePic: "", theme: "dark", role: "user",
                 notifClearTime: 0, location: "", website: "", pronouns: "", badges: [], hideFromSearch: false, createdAt: Date.now()
             };
 
-            // 4. Save to Firestore
             await setDoc(doc(db, "Users", cleanUser), newProfile);
             return { success: true, message: "Account created successfully." };
         } catch (error) {
@@ -62,18 +58,15 @@ export const cloud = {
 
     authenticateUser: async (email, password) => {
         try {
-            // 1. Authenticate with Firebase
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const uid = userCredential.user.uid;
             
-            // 2. Fetch the corresponding profile using the secured userId
             const qUid = query(collection(db, "Users"), where("userId", "==", uid));
             const snapUid = await getDocs(qUid);
             
             let p;
 
             if (snapUid.empty) {
-                // GHOST ACCOUNT HEALER: If Auth succeeded but the profile never saved, we build it right now.
                 const fallbackUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
                 p = {
                     userId: uid, email: email, username: fallbackUsername, usernameLower: fallbackUsername.toLowerCase(),
@@ -81,7 +74,6 @@ export const cloud = {
                     notifClearTime: 0, location: "", website: "", pronouns: "", badges: [], hideFromSearch: false, createdAt: Date.now()
                 };
                 
-                // Save the healed profile back to the database
                 await setDoc(doc(db, "Users", fallbackUsername), p);
             } else {
                 p = snapUid.docs[0].data();
@@ -100,6 +92,26 @@ export const cloud = {
                 return { error: true, message: "Invalid email or password." };
             }
             return { error: true, message: "Authentication failed. " + error.message };
+        }
+    },
+
+    // --- ADMIN OVERRIDE PROTOCOL ---
+    elevateToAdmin: async (currentUser, passcode) => {
+        try {
+            const SECRET_OVERRIDE = "FiresideAdminOverride";
+            if (passcode !== SECRET_OVERRIDE) {
+                return { error: true, message: "Authorization code invalid." };
+            }
+
+            const userRef = doc(db, "Users", currentUser);
+            const userSnap = await getDoc(userRef);
+            
+            if (!userSnap.exists()) return { error: true, message: "User profile not found." };
+
+            await updateDoc(userRef, { role: "admin" });
+            return await cloud.getSocialData(currentUser);
+        } catch (e) {
+            return { error: true, message: "Elevation failed: " + e.message };
         }
     },
 
@@ -163,18 +175,15 @@ export const cloud = {
         try {
             const data = { posts: [], comments: [], saves: [], stories: [], categories: ["General", "Family Event", "Announcement", "Chore"], profiles: {}, friendData: {friends:[], pendingSent:[], pendingReceived:[]} };
             
-            // 1. Categories
             const catDoc = await getDoc(doc(db, "System", "Categories"));
             if (catDoc.exists()) data.categories = catDoc.data().list || data.categories;
 
-            // 2. Profiles
             const usersSnap = await getDocs(collection(db, "Users"));
             usersSnap.forEach(d => {
                 const p = d.data();
                 data.profiles[p.username] = { bio: p.bio||"", profilePic: p.profilePic||"", theme: p.theme||"dark", role: p.role||"user", notifClearTime: p.notifClearTime||0, location: p.location||"", website: p.website||"", pronouns: p.pronouns||"", badges: p.badges||[], hideFromSearch: p.hideFromSearch||false };
             });
 
-            // 3. Posts
             const postsSnap = await getDocs(collection(db, "Posts"));
             postsSnap.forEach(d => {
                 const p = d.data();
@@ -182,15 +191,12 @@ export const cloud = {
             });
             data.posts.sort((a, b) => b.timestamp - a.timestamp);
 
-            // 4. Comments
             const commentsSnap = await getDocs(collection(db, "Comments"));
             commentsSnap.forEach(d => data.comments.push(d.data()));
 
-            // 5. Saves
             const savesSnap = await getDocs(collection(db, "Saves"));
             savesSnap.forEach(d => data.saves.push(d.data()));
 
-            // 6. Stories
             const storiesSnap = await getDocs(collection(db, "Stories"));
             const now = Date.now();
             storiesSnap.forEach(d => {
@@ -198,7 +204,6 @@ export const cloud = {
                 if (now - s.timestamp < 86400000) data.stories.push(s);
             });
 
-            // 7. Friends
             if (currentUser) {
                 const fSnap = await getDoc(doc(db, "Friends", currentUser));
                 if (fSnap.exists()) data.friendData = fSnap.data();
