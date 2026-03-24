@@ -327,6 +327,25 @@ window.updateUsername = async function() {
   }
 }
 
+// --- ADMIN ELEVATION PROTOCOL ---
+window.triggerAdminElevation = async function() {
+  const passcode = document.getElementById('admin-override-code').value;
+  if(!passcode) { showToast("Passcode required."); return; }
+  loading(true, "Elevating permissions...");
+  try {
+      const res = await api.elevateToAdmin(currentUser, passcode);
+      loading(false);
+      if(res.error) showToast(res.message);
+      else {
+          currentRole = 'admin';
+          document.getElementById('admin-override-code').value = '';
+          toggleAdminUI();
+          showToast("Admin Override Successful. Access Granted.");
+          syncData();
+      }
+  } catch(e) { loading(false); showToast("Network Error."); }
+}
+
 window.logout = function() { 
   localStorage.removeItem('fireside_user'); 
   currentUser = ""; 
@@ -904,7 +923,7 @@ function generatePostHTML(post, isPreview) {
     } else {
        const singleUrl = isArray ? mediaUrls[0] : post.mediaUrl;
        if (post.mediaType && post.mediaType.indexOf('video')!==-1) {
-          mHtml = '<div class="media-container" onclick="customDoubleTap(\'' + post.postId + '\',' + post.rowNum + ', event)"><video src="' + singleUrl + '" controls style="width:100%; height:500px; position:relative; z-index:2;"></video></div>';
+          mHtml = '<div class="media-container" onclick="customDoubleTap(\'' + post.postId + '\',' + post.rowNum + ', event)"><video src="' + singleUrl + '" controls playsinline preload="metadata"></video></div>';
        } else {
           mHtml = '<div class="media-container" onclick="customDoubleTap(\'' + post.postId + '\',' + post.rowNum + ', event)"><div class="media-backdrop" style="background-image:url(\'' + singleUrl + '\');"></div><img src="' + singleUrl + '" loading="lazy"></div>';
        }
