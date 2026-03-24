@@ -60,15 +60,33 @@ export const cloud = {
             const searchUser = cleanUser.toLowerCase();
             const email = formatUsernameAsEmail(cleanUser);
             
-            await signInWithEmailAndPassword(auth, email, password);
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const uid = userCredential.user.uid;
             
-            const q = query(collection(db, "Users"), where("usernameLower", "==", searchUser));
-            const snap = await getDocs(q);
+            let p = null;
 
-            if (snap.empty) return { error: true, message: "CRITICAL: Auth succeeded, but profile data is missing." };
+            // 1. Try fetching by exact doc ID
+            const exactDoc = await getDoc(doc(db, "Users", cleanUser));
+            if (exactDoc.exists()) {
+                p = exactDoc.data();
+            } else {
+                // 2. Try fetching by userId mapping
+                const qUid = query(collection(db, "Users"), where("userId", "==", uid));
+                const snapUid = await getDocs(qUid);
+                if (!snapUid.empty) {
+                    p = snapUid.docs[0].data();
+                } else {
+                    // 3. Fallback to usernameLower
+                    const qLower = query(collection(db, "Users"), where("usernameLower", "==", searchUser));
+                    const snapLower = await getDocs(qLower);
+                    if (!snapLower.empty) {
+                        p = snapLower.docs[0].data();
+                    }
+                }
+            }
+
+            if (!p) return { error: true, message: "CRITICAL: Auth succeeded, but profile data is missing." };
             
-            const p = snap.docs[0].data();
-
             return { 
                 success: true, 
                 user: {
