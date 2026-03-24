@@ -70,9 +70,22 @@ export const cloud = {
             const qUid = query(collection(db, "Users"), where("userId", "==", uid));
             const snapUid = await getDocs(qUid);
             
-            if (snapUid.empty) return { error: true, message: "CRITICAL: Auth succeeded, but profile data is missing." };
-            
-            const p = snapUid.docs[0].data();
+            let p;
+
+            if (snapUid.empty) {
+                // GHOST ACCOUNT HEALER: If Auth succeeded but the profile never saved, we build it right now.
+                const fallbackUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+                p = {
+                    userId: uid, email: email, username: fallbackUsername, usernameLower: fallbackUsername.toLowerCase(),
+                    bio: "Reconnected to Fireside", profilePic: "", theme: "dark", role: "user",
+                    notifClearTime: 0, location: "", website: "", pronouns: "", badges: [], hideFromSearch: false, createdAt: Date.now()
+                };
+                
+                // Save the healed profile back to the database
+                await setDoc(doc(db, "Users", fallbackUsername), p);
+            } else {
+                p = snapUid.docs[0].data();
+            }
 
             return { 
                 success: true, 
@@ -92,7 +105,6 @@ export const cloud = {
 
     changePassword: async (currentUser, currentP, newP) => {
         try {
-            // Retrieve stored email based on username to securely re-authenticate
             const userDoc = await getDoc(doc(db, "Users", currentUser));
             if (!userDoc.exists()) return { error: true, message: "User profile not found." };
             
