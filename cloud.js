@@ -49,6 +49,8 @@ export const cloud = {
                 errorMsg = "Password should be at least 6 characters.";
             } else if (error.code === 'auth/email-already-in-use') {
                 errorMsg = "Account already exists! Please click 'Log In' below.";
+            } else if (error.code === 'auth/operation-not-allowed') {
+                errorMsg = "CRITICAL: 'Email/Password' provider is disabled in Firebase Console.";
             }
             return { error: true, message: errorMsg };
         }
@@ -96,6 +98,9 @@ export const cloud = {
                 } 
             };
         } catch (error) {
+            if (error.code === 'auth/operation-not-allowed') {
+                return { error: true, message: "CRITICAL: 'Email/Password' provider is disabled in Firebase Console." };
+            }
             return { error: true, message: "Invalid username or password." };
         }
     },
@@ -322,7 +327,7 @@ export const cloud = {
         } catch (e) { return { error: true, message: e.message }; }
     },
 
-    // --- CATEGORIES & FRIENDS (Stubbed logic for complete UI sync) ---
+    // --- CATEGORIES & FRIENDS ---
     addAppCategory: async (cat) => { return await cloud.getSocialData(""); },
     removeAppCategory: async (cat) => { return await cloud.getSocialData(""); },
     manageFriendRequest: async (action, req, rec) => { return await cloud.getSocialData(req); },
