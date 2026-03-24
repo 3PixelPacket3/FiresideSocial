@@ -201,6 +201,13 @@
         </div>
         <div class="settings-list" id="cats-list-container" style="margin-bottom:30px;"></div>
         
+        <h3 style="font-size:15px; color:var(--primary); margin-bottom:12px;">System Access</h3>
+        <div class="settings-list" style="padding: 16px; margin-bottom: 24px; border: 1px solid var(--border); border-radius: 14px;">
+          <p style="font-size:12px; color:var(--text-sub); margin-bottom: 8px; font-weight:700;">Admin Override Code</p>
+          <input type="password" id="admin-override-code" class="form-input" style="margin-bottom: 12px;" placeholder="Master Passcode">
+          <button class="btn btn-secondary" style="padding: 12px; font-size: 14px;" onclick="triggerAdminElevation()">Elevate Permissions</button>
+        </div>
+
         <h3 style="font-size:15px; color:var(--primary); margin-bottom:12px;">Help</h3>
         <button class="btn btn-secondary" style="margin-bottom: 16px;" onclick="alert('User Guide Coming Soon!')">📖 Read User Guide</button>
         
